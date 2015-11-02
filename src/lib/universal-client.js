@@ -62,7 +62,7 @@ function CometVisu( backend )
   	      var oldValue = this.headers["X-Atmosphere-Transport"];
   	      this.headers["X-Atmosphere-Transport"]="close";
   	      $.ajax( {url:this.config.url + this.config.resources.read, dataType: 'json', context:this, beforeSend:this.beforeSend } );
-  	      if (oldValue!=undefined) {
+  	      if (oldValue!==undefined) {
   	        this.headers["X-Atmosphere-Transport"]=oldValue;
   	      }
   	      else {
@@ -167,16 +167,56 @@ function CometVisu( backend )
     if( !addresses.length ) this.stop();             // stop when new addresses are empty
     else if( startCommunication ) this.login();
   };
+
+  /**
+   * This function starts the communication by a login and then runs the
+   * ongoing communication task
+   * @method login
+   */
+  this.login = function()
+  {
+    
+    console.log("Trying to login...");  
+    var request = {};
+    if( '' !== this.user   ) request.u = this.user;
+    if( '' !== this.pass   ) request.p = this.pass;
+    if( '' !== this.device ) request.d = this.device;
+   
+    
+    $.ajax({
+      url:      this.getResourcePath("login"),
+      dataType: 'json',
+      context:  this.transport[this.config.transport],
+      data:     request,
+      error:    this.asyncLogin,
+      success:  this.readConfigFromLogin
+    });
+  };
   
   /**
-   * adapts the current config to the config found in login response.
+   * Wait 3sec and triggers login
+   * @param e {event} event
+   * @returns {undefined}
+   */
+  this.asyncLogin = function(e)
+  {
+      thisCometVisu.stop();
+      console.log("Trying to login in 3sec... "+e);
+      setTimeout(function(){ thisCometVisu.login(); }, 3000);
+  };
+  
+  /**
+   * Adapts the current config to the config found in login response.
    * Only adapts the part that is available in login-response --> partial merge possible
+   * 
    * @method setConfigFromLoginResponse
    * 
-   * @param backendconfig {json} 'config'-part of login-response
+   * @param json {json} 'config'-part of login-response
    */
   this.readConfigFromLogin = function(json) 
   {
+      clearTimeout();
+      console.log("Got Login response.");
       var backendconfig = json.c;
       if (backendconfig.name) {
           thisCometVisu.config.name = backendconfig.name;
@@ -205,28 +245,7 @@ function CometVisu( backend )
       // forward to handle-session
       thisCometVisu.transport[thisCometVisu.config.transport].handleSession(json);
   };
-
-  /**
-   * This function starts the communication by a login and then runs the
-   * ongoing communication task
-   * @method login
-   */
-  this.login = function()
-  {
-    var request = {};
-    if( '' !== this.user   ) request.u = this.user;
-    if( '' !== this.pass   ) request.p = this.pass;
-    if( '' !== this.device ) request.d = this.device;
-   
-    
-    $.ajax({
-      url:      this.getResourcePath("login"),
-      dataType: 'json',
-      context:  this.transport[this.config.transport],
-      data:     request,
-      success:  this.readConfigFromLogin
-    });
-  };
+  
   
   
 
@@ -327,7 +346,7 @@ function CometVisu( backend )
          */
         handleRead : function( json )
         {
-          if( !json && (-1 == this.lastIndex) )
+          if( !json && (-1 === this.lastIndex) )
           {
             if( thisCometVisu.running )
             { // retry initial request
@@ -373,7 +392,7 @@ function CometVisu( backend )
         
         handleReadStart : function( json )
         {
-          if( !json && (-1 == this.lastIndex) )
+          if( !json && (-1 === this.lastIndex) )
           {
             if( thisCometVisu.running )
             { // retry initial request
@@ -520,6 +539,7 @@ function CometVisu( backend )
               + thisCometVisu.buildRequest());
           this.eventSource.addEventListener('message', this.handleMessage, false);
           this.eventSource.addEventListener('error', this.handleError, false); 
+          console.log("Connected to SSE backend");
         },
 
         /**
@@ -528,6 +548,7 @@ function CometVisu( backend )
         handleMessage : function(e) {
           var json = JSON.parse(e.data);
           var data = json.d;
+          console.log("Received message: "+e.data);
           thisCometVisu.update(data);
         },
 
@@ -535,12 +556,18 @@ function CometVisu( backend )
          * Handle errors
          */
         handleError : function(e) {
-          if (e.readyState == EventSource.CLOSED) {
-            // Connection was closed.
-            thisCometVisu.running = false;
-            // reconnect
-            connect();
-          }
+            switch( e.target.readyState ){
+              // if reconnecting
+              case EventSource.CONNECTING:
+                console.log('Reconnecting SSE eventsource…');
+                break;
+              // if error was fatal
+              case EventSource.CLOSED:
+                console.log('SSE eventsource connection failed. Will relogin.');
+                thisCometVisu.stop();
+                thisCometVisu.asyncLogin();
+                break;
+            }
         }
       }
   };
