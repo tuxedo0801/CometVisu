@@ -175,32 +175,35 @@ function CometVisu( backend )
    * 
    * @param backendconfig {json} 'config'-part of login-response
    */
-  this.setConfigFromLoginResponse = function(backendconfig) 
+  this.readConfigFromLogin = function(json) 
   {
+      var backendconfig = json.c;
       if (backendconfig.name) {
-          this.config.name = backendconfig.name;
-          console.log("Found backendname in login-response: "+this.config.name);
+          thisCometVisu.config.name = backendconfig.name;
+          console.log("Found backendname in login-response: "+thisCometVisu.config.name);
       }
       
       if (backendconfig.transport) {
-          this.config.transport = backendconfig.transport;
-          console.log("Found transport in login-response: "+this.config.transport);
+          thisCometVisu.config.transport = backendconfig.transport;
+          console.log("Found transport in login-response: "+thisCometVisu.config.transport);
       }
       
       if (backendconfig.resources) {
           if (backendconfig.resources.read) {
-            this.config.resources["read"] = backendconfig.resources.read;
-            console.log("Found read-resource in login-response: "+this.config.resources["read"]);
+            thisCometVisu.config.resources["read"] = backendconfig.resources.read;
+            console.log("Found read-resource in login-response: "+thisCometVisu.config.resources["read"]);
           }
           if (backendconfig.resources.write) {
-            this.config.resources["write"] = backendconfig.resources.write;
-            console.log("Found write-resource in login-response: "+this.config.resources["write"]);
+            thisCometVisu.config.resources["write"] = backendconfig.resources.write;
+            console.log("Found write-resource in login-response: "+thisCometVisu.config.resources["write"]);
           }
-          if (backendconfig.resources.rrd) {
-            this.config.resources["rrd"] = backendconfig.resources.rrd;
-            console.log("Found rrd-resource in login-response: "+this.config.resources["rrd"]);
+          if(backendconfig.resources.rrd) {
+            thisCometVisu.config.resources["rrd"] = backendconfig.resources.rrd;
+            console.log("Found rrd-resource in login-response: "+thisCometVisu.config.resources["rrd"]);
           }
-    }
+      }
+      // forward to handle-session
+      thisCometVisu.transport[thisCometVisu.config.transport].handleSession(json);
   };
 
   /**
@@ -221,7 +224,7 @@ function CometVisu( backend )
       dataType: 'json',
       context:  this.transport[this.config.transport],
       data:     request,
-      success:  this.transport[this.config.transport].handleSession
+      success:  this.readConfigFromLogin
     });
   };
   
@@ -288,8 +291,6 @@ function CometVisu( backend )
         handleSession : function(json) {
           thisCometVisu.session = json.s; 
           thisCometVisu.version = json.v.split( '.', 3 );
-          
-          thisCometVisu.setConfigFromLoginResponse(json.c);
 
           if( 0 < parseInt(thisCometVisu.version[0]) || 1 < parseInt(thisCometVisu.version[1]) ) 
             alert( 'ERROR CometVisu Client: too new protocol version (' + json.v + ') used!' );
@@ -501,8 +502,6 @@ function CometVisu( backend )
         handleSession : function(json) {          
           thisCometVisu.session = json.s;
           thisCometVisu.version = json.v.split('.', 3);
-          
-          thisCometVisu.setConfigFromLoginResponse(json.c);
 
           if (0 < parseInt(thisCometVisu.version[0]) || 1 < parseInt(thisCometVisu.version[1]))
             alert('ERROR CometVisu Client: too new protocol version (' + json.v
