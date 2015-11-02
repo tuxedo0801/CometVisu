@@ -424,7 +424,7 @@ function CometVisu( backend )
          */
         handleError : function(xhr,str,excptObj)
         {
-          if( thisCometVisu.running && xhr.readyState != 4 && !this.doRestart && xhr.status!==0 ) // ignore error when connection is irrelevant
+          if( thisCometVisu.running && xhr.readyState !== 4 && !this.doRestart && xhr.status!==0 ) // ignore error when connection is irrelevant
           {
             var readyState = 'UNKNOWN';
             switch( xhr.readyState )
@@ -446,11 +446,11 @@ function CometVisu( backend )
         */
         beforeSend : function( xhr ) {
           for (var headerName in this.resendHeaders) {
-            if (this.resendHeaders[headerName]!=undefined)
+            if (this.resendHeaders[headerName]!==undefined)
               xhr.setRequestHeader(headerName,this.resendHeaders[headerName]);
           }
           for (var headerName in this.headers) {
-            if (this.headers[headerName]!=undefined)
+            if (this.headers[headerName]!==undefined)
               xhr.setRequestHeader(headerName,this.headers[headerName]);
           }
         },
@@ -576,7 +576,7 @@ function CometVisu( backend )
       url:      this.getResourcePath("write"),
       dataType: 'json',
       context:  this,
-      data:     'a=' + address + '&v=' + value + '&ts=' + ts
+      data:     's=' + this.session + '&=' + address + '&v=' + value + '&ts=' + ts
     });
   };
 };
