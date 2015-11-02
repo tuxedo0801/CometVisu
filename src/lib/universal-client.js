@@ -35,7 +35,7 @@ function CometVisu( backend )
   this.backends = {
 	  'default' : {
   		name 	  : 'default',
-  		urlPrefix : '/cgi-bin/',
+                url       : '/cgi-bin/',
   		transport : 'long-polling',
   		resources : {
   		  login : 'l',
@@ -47,7 +47,7 @@ function CometVisu( backend )
 	  },
 	  'openhab' : {
   		name 		: 'openHAB',
-  		urlPrefix 	: '/services/cv/',
+  		url             : '/services/cv/',
   		// keep the e.g. atmosphere tracking-id if there is one
   		resendHeaders : {
   		  'X-Atmosphere-tracking-id' : null
@@ -61,7 +61,7 @@ function CometVisu( backend )
   		    // send an close request to the openHAB server
   	      var oldValue = this.headers["X-Atmosphere-Transport"];
   	      this.headers["X-Atmosphere-Transport"]="close";
-  	      $.ajax( {url:this.config.urlPrefix + this.config.resources.read, dataType: 'json', context:this, beforeSend:this.beforeSend } );
+  	      $.ajax( {url:this.config.url + this.config.resources.read, dataType: 'json', context:this, beforeSend:this.beforeSend } );
   	      if (oldValue!=undefined) {
   	        this.headers["X-Atmosphere-Transport"]=oldValue;
   	      }
@@ -73,7 +73,7 @@ function CometVisu( backend )
 	  },
 	  'openhab2' : {
   		name		: 'openHAB2',
-  		urlPrefix 	: '/rest/cv/',
+  		url             : '/rest/cv/',
   		transport 	: 'sse',
   		transportFallback : {
   		  transport : 'long-polling',
@@ -90,17 +90,22 @@ function CometVisu( backend )
   };
   // init default settings
   this.config = this.backends['default'];
+  
   if (backend && backend !== 'default') {
+      
   	if ($.isPlainObject(backend)) {
-  	  // override default settings
+  	  // override default settings: merge 'backend' into 'this.config'
   	  $.extend(this.config, backend);
   	}
   	else if (this.backends[backend]) {
   	  // merge backend settings into this.config
   	  $.extend(this.config, this.backends[backend]);
   	} else {
+            
   	  console.error("unknown backend setting '%s', using default", backend);
+          
   	}
+        
   }
   
   var thisCometVisu = this;
@@ -125,22 +130,22 @@ function CometVisu( backend )
    */
   this.getResourcePath = function(name) 
   {
-    return this.config.urlPrefix + this.config.resources[name];
+    return this.config.url + this.config.resources[name];
   };
   
   /**
    * Called once after backend setting is created to do some custom settings if neccessary
    * @method checkSettings 
    */
-  this.checkSettings = function() 
-  {
-  	if (this.config.transport === 'sse' && this.config.transportFallback) {
-  	  if(window.EventSource === undefined){
-      	// browser does not support EventSource object => use fallback transport + settings
-          $.extend(this.config, this.config.transportFallback);
+    this.checkSettings = function ()
+    {
+        if (this.config.transport === 'sse' && this.config.transportFallback) {
+            if (window.EventSource === undefined) {
+                // browser does not support EventSource object => use fallback transport + settings
+                $.extend(this.config, this.config.transportFallback);
+            }
         }
-  	}
-  };
+    };
   this.checkSettings();
   
   /**
@@ -161,6 +166,41 @@ function CometVisu( backend )
 
     if( !addresses.length ) this.stop();             // stop when new addresses are empty
     else if( startCommunication ) this.login();
+  };
+  
+  /**
+   * adapts the current config to the config found in login response.
+   * Only adapts the part that is available in login-response --> partial merge possible
+   * @method setConfigFromLoginResponse
+   * 
+   * @param backendconfig {json} 'config'-part of login-response
+   */
+  this.setConfigFromLoginResponse = function(backendconfig) 
+  {
+      if (backendconfig.name) {
+          this.config.name = backendconfig.name;
+          console.log("Found backendname in login-response: "+this.config.name);
+      }
+      
+      if (backendconfig.transport) {
+          this.config.transport = backendconfig.transport;
+          console.log("Found transport in login-response: "+this.config.transport);
+      }
+      
+      if (backendconfig.resources) {
+          if (backendconfig.resources.read) {
+            this.config.resources["read"] = backendconfig.resources.read;
+            console.log("Found read-resource in login-response: "+this.config.resources["read"]);
+          }
+          if (backendconfig.resources.write) {
+            this.config.resources["write"] = backendconfig.resources.write;
+            console.log("Found write-resource in login-response: "+this.config.resources["write"]);
+          }
+          if (backendconfig.resources.rrd) {
+            this.config.resources["rrd"] = backendconfig.resources.rrd;
+            console.log("Found rrd-resource in login-response: "+this.config.resources["rrd"]);
+          }
+    }
   };
 
   /**
@@ -248,6 +288,8 @@ function CometVisu( backend )
         handleSession : function(json) {
           thisCometVisu.session = json.s; 
           thisCometVisu.version = json.v.split( '.', 3 );
+          
+          thisCometVisu.setConfigFromLoginResponse(json.c);
 
           if( 0 < parseInt(thisCometVisu.version[0]) || 1 < parseInt(thisCometVisu.version[1]) ) 
             alert( 'ERROR CometVisu Client: too new protocol version (' + json.v + ') used!' );
@@ -459,6 +501,8 @@ function CometVisu( backend )
         handleSession : function(json) {          
           thisCometVisu.session = json.s;
           thisCometVisu.version = json.v.split('.', 3);
+          
+          thisCometVisu.setConfigFromLoginResponse(json.c);
 
           if (0 < parseInt(thisCometVisu.version[0]) || 1 < parseInt(thisCometVisu.version[1]))
             alert('ERROR CometVisu Client: too new protocol version (' + json.v

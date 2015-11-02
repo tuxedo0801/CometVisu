@@ -899,22 +899,20 @@ function TemplateEngine( undefined ) {
     // read predefined design in config
     var predefinedDesign = $('pages', xml).attr("design");
     
+
     thisTemplateEngine.backendConfig = {};
-    
     if ($('pages', xml).attr("backend")) {
-      thisTemplateEngine.backend = $('pages', xml).attr("backend");
+        thisTemplateEngine.backend = $('pages', xml).attr("backend");
     }
     else {
-      if ($('pages', xml).attr("backend_prefix")) {
-        thisTemplateEngine.backendConfig.urlPrefix = $('pages', xml).attr("backend_prefix");
-        if (!thisTemplateEngine.backendConfig.urlPrefix.endsWith("/")) {
-          thisTemplateEngine.backendConfig.urlPrefix += "/";
+
+        // no prefix, complete url --> easier for user to configure
+        if ($('pages', xml).attr("backend_url")) {
+            thisTemplateEngine.backendConfig.url = $('pages', xml).attr("backend_url");
         }
-      }
-      if ($('pages', xml).attr("backend_transport")) {
-        thisTemplateEngine.backendConfig.transport = $('pages', xml).attr("backend_transport");
-      }
-    }
+
+    }    
+    
     thisTemplateEngine.initBackendClient();
 
     if( undefined === $('pages', xml).attr( 'scroll_speed' ) )
